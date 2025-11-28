@@ -1,6 +1,6 @@
 ﻿namespace Todo.TodoApi.Models;
 
-public class TodoEntity
+public class TodoEntity : IUnique
 {
     public int Id { get; set; }
     public string Title { get; set; }
@@ -8,4 +8,9 @@ public class TodoEntity
     public DateTimeOffset Created { get; set; }
     public DateTimeOffset Deadline { get; set; }
     public bool Completed { get; set; }
+}
+
+public interface IUnique
+{
+    public int Id { get; set; }
 }

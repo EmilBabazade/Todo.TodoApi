@@ -1,29 +1,54 @@
-﻿using Dapper;
+﻿using Microsoft.EntityFrameworkCore;
 using MySqlConnector;
+using System.Linq.Expressions;
+using Todo.TodoApi.DB;
 
 namespace Todo.TodoApi.Models;
 
-public class TodoRepo(Func<MySqlConnection> connFactory)
+public class Repo<T>(DbContext context) where T : class, IUnique
 {
-    private readonly Func<MySqlConnection> _connFactory = connFactory;
+    protected readonly DbSet<T> _set = context.Set<T>();
+    protected readonly DbContext _context = context;
 
-    public async Task<IEnumerable<TodoEntity>> GetTodosAsync(CancellationToken cancellationToken)
+    public virtual async Task<IEnumerable<T>> GetManyAsync(Func<T, bool>? filter = null, CancellationToken cancellationToken = default)
     {
-        using var conn = _connFactory();
-
-        var todos = await conn.QueryAsync<TodoEntity>(
-            "SELECT * FROM Todos",
-            cancellationToken
-            );
-
-        return todos;
+        if (filter == null)
+        {
+            return await _set.ToArrayAsync(cancellationToken);
+        }
+        return await _set.Where(x => filter(x)).ToArrayAsync(cancellationToken);
     }
 
-    public async Task<TodoEntity?> GetTodoAsync(int id, CancellationToken cancellationToken)
+    public virtual async Task<T?> GetOneAsync(Expression<Func<T, bool>> filter, CancellationToken cancellationToken = default)
     {
-        using var conn = _connFactory();
-
-        var command = new CommandDefinition("SELECT * FROM Todos WHERE id = @id", new { id }, cancellationToken: cancellationToken);
-        return await conn.QueryFirstAsync<TodoEntity?>(command);
+        return await _set.FirstOrDefaultAsync(filter, cancellationToken);
     }
+
+    public virtual async Task<T?> UpdateAsync(T updatedEntity, Expression<Func<T, bool>> filter, CancellationToken cancellationToken = default)
+    {
+        var entity = await GetOneAsync(filter, cancellationToken);
+        if(entity == null)
+        {
+            throw new NotFoundException("Entity to update doesn't exist");
+        }
+        entity = updatedEntity;
+        _set.Update(entity);
+        await _context.SaveChangesAsync(cancellationToken);
+        return entity;
+    }
+
+    public virtual async Task DeleteAsync(int id, CancellationToken cancellationToken = default)
+    {
+        var entity = await GetOneAsync(x => x.Id == id, cancellationToken);
+        if (entity == null)
+        {
+            throw new NotFoundException("Entity to update doesn't exist");
+        }
+        _set.Remove(entity);
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+}
+
+public class NotFoundException(string message) : Exception(message)
+{
 }
