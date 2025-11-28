@@ -9,8 +9,3 @@ public class TodoEntity : IUnique
     public DateTimeOffset Deadline { get; set; }
     public bool Completed { get; set; }
 }
-
-public interface IUnique
-{
-    public int Id { get; set; }
-}

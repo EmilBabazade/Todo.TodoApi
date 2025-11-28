@@ -19,17 +19,29 @@ public class Repo<T>(DbContext context) where T : class, IUnique
         return await _set.Where(x => filter(x)).ToArrayAsync(cancellationToken);
     }
 
-    public virtual async Task<T?> GetOneAsync(Expression<Func<T, bool>> filter, CancellationToken cancellationToken = default)
+    public virtual async Task<T> GetOneAsync(Expression<Func<T, bool>> filter, CancellationToken cancellationToken = default)
     {
-        return await _set.FirstOrDefaultAsync(filter, cancellationToken);
+        var res = await _set.FirstOrDefaultAsync(filter, cancellationToken);
+        if (res == null)
+        {
+            throw new NotFoundException();
+        }
+        return res;
     }
 
-    public virtual async Task<T?> UpdateAsync(T updatedEntity, Expression<Func<T, bool>> filter, CancellationToken cancellationToken = default)
+    public virtual async Task<T> CreateOneAsync(T entity, CancellationToken cancellationToken = default)
+    {
+        _set.Add(entity);
+        await _context.SaveChangesAsync(cancellationToken);
+        return entity;
+    }
+
+    public virtual async Task<T> UpdateAsync(T updatedEntity, Expression<Func<T, bool>> filter, CancellationToken cancellationToken = default)
     {
         var entity = await GetOneAsync(filter, cancellationToken);
         if(entity == null)
         {
-            throw new NotFoundException("Entity to update doesn't exist");
+            throw new NotFoundException();
         }
         entity = updatedEntity;
         _set.Update(entity);
@@ -42,13 +54,9 @@ public class Repo<T>(DbContext context) where T : class, IUnique
         var entity = await GetOneAsync(x => x.Id == id, cancellationToken);
         if (entity == null)
         {
-            throw new NotFoundException("Entity to update doesn't exist");
+            throw new NotFoundException();
         }
         _set.Remove(entity);
         await _context.SaveChangesAsync(cancellationToken);
     }
-}
-
-public class NotFoundException(string message) : Exception(message)
-{
 }

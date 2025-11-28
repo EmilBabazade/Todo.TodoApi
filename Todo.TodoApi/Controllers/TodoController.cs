@@ -25,6 +25,11 @@ public class TodoController(Repo<TodoEntity> todoRepo) : ControllerBase
     }
 
     // insert one
+    [HttpPost]
+    public async Task<TodoEntity> CreateTodoAsync(TodoEntity todo, CancellationToken cancellationToken)
+    {
+        return await _todoRepo.CreateOneAsync(todo, cancellationToken);
+    }
 
     // update one
 
